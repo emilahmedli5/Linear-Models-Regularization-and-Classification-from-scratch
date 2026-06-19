@@ -8,13 +8,9 @@ class LinearRegression:
 
 
     def fit(self, X: np.ndarray, y: np.ndarray)-> "LinearRegression":
+
         X_aug = np.hstack((X, np.ones((X.shape[0], 1))))
-        A=np.transpose(X_aug)@X_aug
-        b=np.transpose(X_aug)@y
-
-        self.weights=np.linalg.solve(A,b)
-
-
+        self.weights = np.linalg.inv(X_aug.T @ X_aug) @ X_aug.T @ y
         return self
 
     def predict(self, X: np.ndarray)-> np.ndarray:
