@@ -13,7 +13,7 @@ class LassoRegression:
         self.y_mean = None
 
     def _soft_threshold(self, z: float, lambda_: float) -> float:
-        """The soft-thresholding operator S(z, lambda)"""
+        #The soft-thresholding operator S(z, lambda)
         return np.sign(z) * np.maximum(np.abs(z) - lambda_, 0.0)
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> "LassoRegression":
@@ -22,6 +22,8 @@ class LassoRegression:
         # 1. Standardize Features (zero mean, unit variance)
         self.X_mean = np.mean(X, axis=0)
         self.X_std = np.std(X, axis=0)
+
+        
         # Prevent division by zero for constant features
         self.X_std[self.X_std == 0] = 1.0 
         X_scaled = (X - self.X_mean) / self.X_std
