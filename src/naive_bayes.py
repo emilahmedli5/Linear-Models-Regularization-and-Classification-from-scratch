@@ -1,4 +1,5 @@
 import numpy as np
+
 class GaussianNaiveBayes:
     def fit(self, X: np.ndarray, y: np.ndarray):
         """
@@ -75,91 +76,51 @@ class GaussianNaiveBayes:
         
         # Normalize to get probabilities
         return exp_post / np.sum(exp_post, axis=1, keepdims=True)
-    
+
 
 class MultinomialNaiveBayes:
-    """
-    Multinomial Naive Bayes for discrete count / TF-IDF features.
- 
-    Uses Laplace (add-alpha) smoothing to avoid zero-probability words.
-    Stores log-probabilities for numerical stability.
- 
-    Suitable for Bag-of-Words and TF-IDF text features — unlike
-    GaussianNaiveBayes it does NOT assume features are normally distributed.
-    """
- 
+
     def __init__(self, alpha: float = 1.0) -> None:
-        """
-        Parameters
-        ----------
-        alpha : Laplace smoothing parameter (default 1.0 = standard Laplace).
-                Larger values spread probability mass more uniformly.
-        """
+        # alpha is the Laplace smoothing parameter to avoid zero probabilities
         self.alpha = alpha
-        self.classes_        = None
-        self.log_priors_     = {}   # log P(y = c)
-        self.log_likelihoods_= {}   # log P(x_j | y = c)  — shape (n_features,) per class
- 
+        self.classes_ = None
+        self.log_priors_ = {}
+        self.log_likelihoods_ = {}
+
     def fit(self, X: np.ndarray, y: np.ndarray) -> "MultinomialNaiveBayes":
-        """
-        Estimate log-priors and log-likelihoods from training counts.
- 
-        Parameters
-        ----------
-        X : (n, p) non-negative feature matrix (raw counts or TF-IDF weights)
-        y : (n,)   integer class labels
-        """
         self.classes_ = np.unique(y)
         n_samples, n_features = X.shape
- 
+
         for c in self.classes_:
-            X_c = X[y == c]                          # rows belonging to class c
- 
+            X_c = X[y == c]
+
             # Log prior: log P(y = c)
             self.log_priors_[c] = np.log(X_c.shape[0] / n_samples)
- 
-            # Sum feature values across all documents in this class
-            # (Multinomial: treat each feature value as a "word count")
-            feature_counts = X_c.sum(axis=0)        # (p,)
- 
-            # Laplace-smoothed log-likelihood: log P(x_j | y = c)
-            # = log( (count_j + alpha) / (total_count + alpha * n_features) )
+
+            # Sum word counts across all documents in this class
+            feature_counts = X_c.sum(axis=0)
             total_count = feature_counts.sum()
+
+            # Laplace-smoothed log-likelihood: log P(word_j | class c)
             self.log_likelihoods_[c] = np.log(
                 (feature_counts + self.alpha) / (total_count + self.alpha * n_features)
             )
- 
+
         return self
- 
+
     def _log_posterior(self, X: np.ndarray) -> np.ndarray:
-        """
-        Compute unnormalised log-posteriors for every class.
- 
-        Returns
-        -------
-        log_posteriors : (n_samples, n_classes)
-        """
+        # log P(y=c | x) ∝ log P(y=c) + x · log P(x | y=c)
         log_posts = np.zeros((X.shape[0], len(self.classes_)))
         for i, c in enumerate(self.classes_):
-            # log P(y=c | x) ∝ log P(y=c) + Σ_j x_j * log P(x_j | y=c)
             log_posts[:, i] = self.log_priors_[c] + X @ self.log_likelihoods_[c]
         return log_posts
- 
+
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """Return the most probable class label for each sample."""
         return self.classes_[np.argmax(self._log_posterior(X), axis=1)]
- 
+
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """
-        Return class probabilities using the log-sum-exp trick for stability.
- 
-        Returns
-        -------
-        probs : (n_samples, n_classes)
-        """
         log_posts = self._log_posterior(X)
-        # Subtract row-wise max before exponentiating (numerical stability)
+        # Subtract max before exponentiating to prevent overflow
         log_posts -= log_posts.max(axis=1, keepdims=True)
         probs = np.exp(log_posts)
         return probs / probs.sum(axis=1, keepdims=True)
- 
